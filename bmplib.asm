@@ -9,23 +9,65 @@ _start:                         ;The main entry point of the program
         call writeBmpHeader
         ;; no. of bytes to allocate should be in rax
         push rax
-        mov rax, 600
+        mov rax, 196608
         call createBmpBuffer
         ;; Preconds:
         ;; buf_addr should be in rax
         ;; bmpwidth should be in rdi
         ;; bmpheight should be in rdx
+        push rax
+        push rdi
+        push rdx
         mov r9, rax             ; store addr
-        mov rdi, 0x8
-        mov rdx, 0x8
+        mov rdi, 0x100
+        mov rdx, 0x100
         call writeBmpDataToBuffer
+        pop rdx
+        pop rdi
+        pop rax
         mov rax, r9
         ;; addr of buf should be in rsi
         mov rsi, r9
         ;; fd should be in rax
         pop rax
         ;; size of buffer should be in rdx
-        mov rdx, 600
+        mov rdx, 196608
+        push rax
+        push rdx
+        push rsi
+        push rdi
+        mov rdi, rsi
+        ;; x=128, y=32, width=30, height = 40
+        mov rax, 64             ; x
+        shl rax, 16
+        or  rax, 64             ; y
+        shl rax, 16
+        or  rax, 128            ; width
+        shl rax, 16
+        or  rax, 128            ; height
+        mov rbx, 0x0            ; color
+        mov rcx, 256
+        shl rcx, 32
+        or  rcx, 256
+        push rdi
+        call rectangle
+        pop rdi
+        mov rax, 96             ; x
+        shl rax, 16
+        or  rax, 96             ; y
+        shl rax, 16
+        or  rax, 64            ; width
+        shl rax, 16
+        or  rax, 64            ; height
+        mov rbx, 0xFFFFFF      ; color
+        mov rcx, 256
+        shl rcx, 32
+        or  rcx, 256
+        call rectangle
+        pop rdi
+        pop rsi
+        pop rdx
+        pop rax
         call writeBmpBuffer
         call closeFile
         jmp exitSuccess
@@ -157,7 +199,98 @@ writeBmpBuffer:
 
 
 
+rectangle:
+        ;; preconds
+        ;; addr of buf should be in rdi
+        ;; top-left x,y,width,height should be in rax as x << 48 | y << 32 | width << 16 | height
+        ;; color as b << 16 | r << 8 | g should be rbx
+        ;; img_width,img_height (in pixels) as img_width << 32 | img_height should be in rcx
+        ;; postconds - rectangle of color written to buf in rdi
 
+        ;; compute total bytes to write - width x height x 3 (assume no padding for bmp)
+
+        ;; save all callee-save registers
+        push rbp
+        push rbx
+        push r12
+        push r13
+        push r14
+        push r15
+        push rax                ; save input coords on stack
+        push rbx                ; save color on stack
+        push rdi                ; addr of buf
+        mov r11, rdi            ; addr for computations
+        mov r10, rax            ; save input-coords in r10 (for easy access)
+        ;; Compute byte-width of image
+        mov r8, 3
+        shr rcx, 32
+        mov rax, rcx
+        mul r8
+        mov rbp, rax            ;store byte-width of image in rbp
+        ;; mov r8, rax
+        mov rax, r10
+        and eax, 0xffff0000     ; get width of rectangle
+        shr rax, 16
+        mov r8, 3               ;bytes per line
+        mul r8
+        mov r12, rax            ; save the byte-width in a register
+        mov rax, r10
+        and rax, 0xffff          ; get height of rectangle
+        mov r13, rax             ; save the height in a register
+        mul r12                  ; width * height
+        mov r9, rax             ;store total bytes to write
+
+        ;; Compute starting offset into buf
+        mov rax, r10
+        shl rax, 16             ; remove topleft-x
+        shr rax, 48             ; grab topleft-y
+        mov rbx, rax            ; current y
+        mov rax, r10
+        shr rax, 48             ; topleft x
+        mul r8                  ; times 3 because 3 bytes per pixel
+        add rax, r11            ; current x (and base x-offset) (r11 has address)
+        mov rcx, rax            ; store base x-offset
+        ;; Now add x + y * byte-width of image
+        mov rax, rbx            ; current y in rax
+        mul rbp                 ; multiply by byte-width of line
+        add rax, rcx            ; add x-offset
+        xor r14, r14            ; bytes written so far - per row
+rectangle_loop:
+        cmp r14,r12             ; have we written all bytes in this row?
+        jl rectangle_write
+        ;; if we are done with this row, check if we're completely done
+        cmp r13, 0
+        jle rectangle_exit
+        ;; else, increment y and compute index to write next row
+        inc rbx                 ; increment y
+        dec r13                 ; one less row to write
+        mov rax, rbx            ; current y in rax
+        mul rbp                 ; multiply by byte-width of img
+        add rax, rcx            ; add base x-offset
+        mov r14, 0              ;and reset byte-count for line
+rectangle_write:
+        mov rdx, [rsp+8]       ; color
+        mov byte [rax], dl
+        shr rdx, 8
+        mov byte [rax+1], dl
+        shr rdx, 8
+        mov byte [rax+2], dl
+        add rax, 3
+        add r14, 3
+        jmp rectangle_loop
+
+rectangle_exit:
+        pop rdi
+        pop rbx
+        pop rax
+        ;; restore calles-save regs
+        pop r15
+        pop r14
+        pop r13
+        pop r12
+        pop rbx
+        pop rbp
+        ret
 
 exitError:
         ;; Figure out what the error was
@@ -175,25 +308,25 @@ exit:
         section .data
         ;; vars for my file
 filename:       db "test.bmp",0
-bmp_width       equ 0x8
-bmp_height      equ 0x8
+bmp_width       equ 0x100
+bmp_height      equ 0x100
         ;; Vars for the BMP format
 bmp_fhdr_sz equ 14              ;bitmap file header
 
 
         ;; Vars for the bitmap header
 bmp_hdr_header: db "BM"         ; 2-byte "magic number" for bmp
-bmp_hdr_sz_fld: dd 0xf6              ; size of the bmp file in bytes - 0xa * 0x14 * 0x3 + 0xe
+bmp_hdr_sz_fld: dd 0x30036              ; size of the bmp file in bytes - 0xa * 0x14 * 0x3 + 0xe
 bmp_hdr_useless_fld: dd 0x00000000
 bmp_hdr_offset: dd 0x36         ; offset to data is 14 byte hdr + 40 bytes info-header
 info_hdr_sz:    dd 0x28   ; size of info header == 40
-info_hdr_width: dd 0x8   ; width of img in pixels for info header
-info_hdr_height: dd 0x8   ; height of img in pixels for info header
+info_hdr_width: dd 0x100   ; width of img in pixels for info header
+info_hdr_height: dd 0x100   ; height of img in pixels for info header
 info_hdr_planes:        dw 0x1 ;number of planes == 1
 info_hdr_bpp:   dd 0x18         ;24 bits per pixel, 24bit RGB
 info_hdr_comp:  dd 0x00000000     ;no compression
 info_hdr_imgsz: dd 0x00000000     ;compressed size of img is 0, because no compression
-info_hdr_xppm:  dd 0x00000000     ; Horizontal resolutin, pixels/meter
+info_hdr_xppm:  dd 0x00000000     ; Horizontal resolution, pixels/meter
 info_hdr_yppm:  dd 0x00000000     ; Vertical resolutin, pixels/meter
 info_hdr_colors_used:   dd 0x0 ; actual number of colors used
 info_hdr_imp_col:       dd 0x0 ; all colors are important
