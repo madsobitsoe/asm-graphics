@@ -4,8 +4,9 @@ BITS 64
         global createBmpBuffer
         extern dyn_writeBmpHeader
         extern writeBmpDataToBuffer
-        extern rectangle
         extern writeBmpBuffer
+        extern rectangle
+        extern line
 
 _start:                         ;The main entry point of the program
         mov rax, filename
@@ -60,6 +61,29 @@ _start:                         ;The main entry point of the program
         shl rcx, 32
         or  rcx, 256
         call rectangle
+
+        ;; Draw a horizontal line!
+        mov rax, 0x80           ; x0=0 y0=128
+        shl rax, 16
+        or  rax, 0x100           ; x1=256
+        shl rax, 16
+        or  rax, 0x80           ; y1=128
+        mov rbx, 0xFF00        ; Green!
+        mov rcx, 256
+        shl rcx, 32
+        or  rcx, 256
+        call line
+        ;; Draw a vertical line!
+        mov rax, 0x80           ; x0=128 y0=0
+        shl rax, 32
+        or  rax, 0x80           ; x1=128
+        shl rax, 16
+        or  rax, 0x100           ; y1=256
+        mov rbx, 0xFF0000        ; Red!
+        mov rcx, 256
+        shl rcx, 32
+        or  rcx, 256
+        call line
         ;; Now save it!
         ;; fd should be in rax
         ;; size of buffer in rdx

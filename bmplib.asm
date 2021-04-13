@@ -2,6 +2,7 @@
         global dyn_writeBmpHeader
         global writeBmpDataToBuffer
         global rectangle
+        global line
         global writeBmpBuffer
         extern exitError
         BITS 64
@@ -94,12 +95,122 @@ writeBmpBuffer:
         ret
 
 
+line:
+        ;; preconds
+        ;; addr of buf should be in rdi
+        ;; (x0,y0), (x1,y1) should be in rax as
+        ;; x0 << 48 | y0 << 32 | x1 << 16 | y1
+        ;; color as r << 16 | g << 8 | b should be in rbx
+        ;; img_width,img_height (in pixels) as img_width << 32 | img_height should be in rcx
+        ;; remarks:
+        ;; Uses the midpoint-algorithm to draw a rasterized line
+        push rdi                ; put addr on stack
+        push rbx                ; put color on stack
+        push rcx
+        push rax                ; put coords on stack
+
+        ;; Ensure we are always drawing from left to right!
+line_ensure_left_right:
+        mov rbx, rax
+        shr rbx, 48             ;x0
+        shl rax, 32
+        shr rax, 48             ;x1
+        cmp rbx, rax
+        jl line_check_if_horizontal
+        je line_vertical_rect
+line_swap_coords:
+        pop rax
+        mov ebx, eax
+        shr rax, 32
+        shl ebx, 32
+        or rax, rbx
+        push rax
+
+        ;; If this is a straight line, we can use the rectangle function instead
+line_check_if_horizontal:
+        mov rax, [rsp]          ;get coords back in rax
+        mov rbx, rax
+        shl rax, 16
+        shr rax, 48             ;y0
+        shl rbx, 48
+        shr rbx, 48             ;y1
+        cmp rbx, rax
+        je line_horizontal_rect
+        ;; After all the checks, finally draw a line!
+line_draw_line:
+        ;; not for now!
+        pop rax
+        pop rcx
+        pop rbx
+        pop rdi
+        ret
+
+line_vertical_rect:
+        pop rax                 ;coords
+        mov rbx, 0xFFFFFFFF0000FFFF     ; mask for x1, which needs to be 1 now
+        and rax, rbx
+        or rax, 0x10000         ; set width to 1
+        mov ebx, 0
+        mov bx, ax              ; y1
+        mov rcx, rax
+        shl rcx, 16
+        shr rcx, 48             ; y0
+        cmp rbx, rcx            ; is y1 > y0?
+        jg line_height_is_fine
+        je line_error           ;no height, no vertical line
+        ;; Else, swap y0 and y1
+        mov rdx, 0xFFFF0000FFFF0000
+        and rax, rdx
+        shl rbx, 32
+        or  rcx, rbx
+        or  rax, rcx
+        shr rbx, 32
+        xchg rbx, rcx
+line_height_is_fine:
+        sub rbx, rcx
+        ;; Clear out y1 in coord - to replace with height
+        shr rax, 16
+        shl rax, 16
+        or rax, rbx
+        jmp line_use_rectangle
+line_horizontal_rect:
+        pop rax                 ;coords
+
+        ;; Compute width of line, x1-x0
+        mov ebx, eax
+        shr rbx, 16             ; x1
+        mov rcx, rax
+        shr rcx, 48             ; x0
+        sub rbx, rcx
+        shl rbx, 16
+        ;; clear out width-param
+        mov rdx, 0xFFFFFFFF0000FFFF
+        and rax, rdx
+        or  rax, rbx            ; and write the correct value
+        ;; clear out y1, to replace with 1
+        shr rax, 16
+        shl rax, 16
+        or  rax, 1
+line_use_rectangle:
+        pop rcx
+        pop rbx
+        pop rdi
+        jmp rectangle
+
+line_error:
+        ;; just return - definitely don't draw anything
+        pop rax
+        pop rcx
+        pop rbx
+        pop rdi
+        ret
+
 
 rectangle:
         ;; preconds
         ;; addr of buf should be in rdi
         ;; top-left x,y,width,height should be in rax as x << 48 | y << 32 | width << 16 | height
-        ;; color as b << 16 | r << 8 | g should be rbx
+        ;; color as r << 16 | g << 8 | b should be in rbx
         ;; img_width,img_height (in pixels) as img_width << 32 | img_height should be in rcx
         ;; postconds - rectangle of color written to buf in rdi
 
