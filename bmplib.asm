@@ -6,11 +6,18 @@
 _start:                         ;The main entry point of the program
         mov rax, filename
         call openFile
-        call writeBmpHeader
+        ;; call writeBmpHeader
         ;; no. of bytes to allocate should be in rax
-        push rax
+        push rax                ; push fd!
         mov rax, 196608
+        add rax, 54             ; add header size
         call createBmpBuffer
+        mov rbx, 0x100
+        shl rbx, 32
+        or rbx, 0x100
+        call dyn_writeBmpHeader
+        push rax                ; push start of buffer!
+        add rax, 54             ;add header size to pointer
         ;; Preconds:
         ;; buf_addr should be in rax
         ;; bmpwidth should be in rdi
@@ -32,6 +39,7 @@ _start:                         ;The main entry point of the program
         pop rax
         ;; size of buffer should be in rdx
         mov rdx, 196608
+        add rdx, 54             ;add header size
         push rax
         push rdx
         push rsi
@@ -68,6 +76,14 @@ _start:                         ;The main entry point of the program
         pop rsi
         pop rdx
         pop rax
+        mov rsi, rax
+        pop rax
+        mov rdx, 196608
+        add rdx, 54             ;add header size
+
+        ;; fd should be in rax
+        ;; size of buffer in rdx
+        ;; addr of buffer in rsi
         call writeBmpBuffer
         call closeFile
         jmp exitSuccess
@@ -125,6 +141,48 @@ writeBmpHeader:
         pop rax
         ret
 
+;; Dynamically generate a valid BMP header and write it file at fd
+dyn_writeBmpHeader:
+        ;; Preconds:
+        ;; addr of buffer to write header in should be in rax
+        ;; height << 32 | width of image in rbx
+        ;; postcond:
+        ;; 54-byte bmp-header is written to the buffer pointed to by addr in rax
+        push rbx                ; store height << 32 | width on stack
+        push rax                ;store addr on stack
+        ;; Compute size of file in bytes
+        mov rax, rbx
+        shr rax, 32
+        mov ecx, eax            ; width of img in pixels (for header)
+        shl rbx, 32
+        shr rbx, 32
+        ;; and rbx, 0xFFFFFFFF
+        mov edx, ebx            ; height of img in pixels (for header)
+        mul rbx
+        mov rbx, 3
+        mul rbx
+        ;; add rax, 54             ; add size of header
+        mov ebx, eax            ; rbx has size of file (which can only be 4 bytes large)
+        mov rdi,0x4d42          ;"BM"
+        shl rbx, 16
+        or rbx, rdi
+        pop rax                 ; rax has addr
+        mov [rax], rbx          ; write "BM" + size in bytes
+        mov dword [rax+6], 0x0 ; useless 4 byte field + offset into data
+        mov dword [rax+10], 0x36
+        mov dword [rax+14], 0x28        ; size of info-header = 40
+        pop rcx
+        mov qword [rax+18], rcx         ; width in pixels
+        ;; mov dword [rax+22], edx         ; height in pixels
+        mov dword [rax+26], 0x00180001  ; no. of planes + bpp
+        mov qword [rax+30], 0                 ; 8 0-bytes (compression used)
+        mov qword [rax+38], 0                 ; horizontal/vertical resolution - just zero
+        mov qword [rax+46], 0                 ; colors used + all colors are important
+        ;; colors used = 0 default to 2^n
+
+        ret
+
+
 
 
 createBmpBuffer:
@@ -141,6 +199,7 @@ createBmpBuffer:
         xchg rax, rsi            ;put num of bytes to allocate in rsi, syscall num in rax
         xor rdi,rdi             ; we don't care where the memory is. let the kernel decide
         mov rdx, 3              ; PROT_READ | PROT_WRITE
+        ;; We don't want to map to the file we created, as we want to overwrite the file entirely if it existed
         mov r10, 0x22              ; MAP_PRIVATE | MAP_ANONYMOUS - no file backing
         mov r8, -1               ; -1 for fd. (optional, good practice)
         xor r9, r9              ; no offset!
