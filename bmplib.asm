@@ -95,6 +95,43 @@ writeBmpBuffer:
         ret
 
 
+draw_pixel:
+        ;; preconds
+        ;; addr of buf should be in rdi
+        ;; x  should be in rax
+        ;; y should be in rdx
+        ;; color as r << 16 | g << 8 | b should be in rbx
+        ;; img_width,img_height (in pixels) as img_width << 32 | img_height should
+        ;; be in rcx
+        push rax
+        push rcx
+        push rbx
+        push rdx
+        push rsi
+        mov rsi, rdx
+        shr rcx, 32             ; width
+        xchg rax, rsi
+        mul rcx
+        mov rcx, 3
+        mul rcx                 ; byte-width of img * y in rax
+        xchg rax,rsi
+        mul rcx                 ; byte-offset for x-coord
+        add rax, rsi            ; real offset for pixel
+        add rax, rdi            ; real location for pixel
+draw_pixel_write:
+        mov byte [rax], bl
+        shr rbx, 8
+        mov byte [rax+1], bl
+        shr rbx, 8
+        mov byte [rax+2], bl
+        pop rsi
+        pop rdx
+        pop rbx
+        pop rcx
+        pop rax
+        ret
+
+
 line:
         ;; preconds
         ;; addr of buf should be in rdi
@@ -132,13 +169,104 @@ line_check_if_horizontal:
         mov rbx, rax
         shl rax, 16
         shr rax, 48             ;y0
-        shl rbx, 48
-        shr rbx, 48             ;y1
+        and rbx, 0xFFFF         ;y1
         cmp rbx, rax
         je line_horizontal_rect
         ;; After all the checks, finally draw a line!
 line_draw_line:
-        ;; not for now!
+        mov rax, [rsp]   ; x1
+        shl rax, 32
+        shr rax, 48
+        mov r13, rax            ; r13 == x1
+        mov rbx, [rsp]     ; x0
+        shr rbx, 48
+        sub rax, rbx            ; x1 - x0 == dx
+        shl rax, 1              ; abs_2dx
+        mov rcx, 0
+        mov rdx, 0
+        mov rcx, [rsp]
+        and rcx, 0xFFFF        ; y1
+        mov r14, rcx           ; y1 == r14
+        mov rdx, [rsp]
+        shl rdx, 16
+        shr rdx, 48             ; y0
+        mov rsi, 1              ; initial value for y_step
+        cmp rcx, rdx            ; is y1>y0 ?
+        jg line_draw_line_dy_positive
+        xchg rcx, rdx           ; if not, swap them (for computation of abs value)
+        mov rsi, -1             ; y_step is negative
+line_draw_line_dy_positive:
+        sub rcx, rdx            ; |y1 - y2|
+        shl rcx, 1              ; abs_2dy
+        ;;  Ensure actual y is in rdx
+        mov rdx, [rsp]
+        shl rdx, 16
+        shr rdx, 48             ; y0
+        ;; Is this x-dominant or y-dominant?
+        cmp rax, rcx
+        jg line_x_dom_init
+        jmp line_y_init
+
+line_x_dom_init:
+        mov r8, rax
+        shr rax, 1
+        sub r8, rax            ; d
+        shl rax, 1              ; restore abs_2dx
+line_x_dom_loop:
+        cmp rbx, r13            ; Are we done?
+        jg line_exit
+        cmp r8, 0
+        jl line_x_dom_loop_skip_y_inc
+        add rdx, rsi            ; y += y_step
+        sub r8, rax            ; d -= abs_2dx
+line_x_dom_loop_skip_y_inc:
+        inc rbx                 ; x += x_step
+        add r8, rcx            ; d += abs_2dy
+        ;; (rbx,rdx) == (x,y)
+        mov r9, rbx
+        mov r11, rax
+        mov rax, rbx
+        mov rbx, [rsp+16]
+        mov r10, rcx
+        mov rcx, [rsp+8]
+        call draw_pixel
+        mov rcx, r10
+        mov rbx, r9
+        mov rax, r11
+        jmp line_x_dom_loop
+
+line_y_init:
+        mov r8, rax             ; abs_2dx
+        shr rcx, 1              ; abs_2dy >> 1
+        sub r8, rcx             ; d = abs_2d - (abs_2dy >> 1)
+        shl rcx, 1              ; restore abs_2dy
+line_y_dom_loop:
+        cmp rdx, r14            ; Are we done? y >= y1
+        jg line_exit
+        cmp r8, 0               ; if (d >= 0)
+        jl line_y_dom_loop_skip_x_inc
+        inc rbx                 ; x += x_step
+        sub r8, rcx             ; d -= abs_2dy
+line_y_dom_loop_skip_x_inc:
+        add r8, rax             ; d += abs_2dx
+        add rdx, rsi             ; y += y_step
+        ;; (rbx,rdx) == (x,y)
+        mov r9, rbx
+        mov r11, rax
+        mov rax, rbx
+        mov rbx, [rsp+16]
+        mov r10, rcx
+        mov rcx, [rsp+8]
+        call draw_pixel
+        mov rcx, r10
+        mov rbx, r9
+        mov rax, r11
+        jmp line_y_dom_loop
+
+        jmp line_exit
+
+
+line_exit:
         pop rax
         pop rcx
         pop rbx

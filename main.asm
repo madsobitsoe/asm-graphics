@@ -84,6 +84,71 @@ _start:                         ;The main entry point of the program
         shl rcx, 32
         or  rcx, 256
         call line
+
+        ;; Draw a line that has a slope
+        mov  rax, 0x100           ; x0=0, y0=0, x1=256
+        shl rax, 0x10
+        or  rax, 0x100           ; y1=256
+        mov rbx, 0x424344        ; hacky color
+        mov rcx, 0x100
+        shl rcx, 0x20
+        or  rcx, 0x100
+        call line
+
+
+        ;; Draw a line that has a slope
+        mov  rax, 0x80           ; x0=0, y0=128
+        shl rax, 0x10
+        or  rax, 0x100           ; x1=256, y1=192
+        shl rax, 16
+        or  rax, 192
+        mov rbx, 0x424344        ; hacky color
+        mov rcx, 0x100
+        shl rcx, 0x20
+        or  rcx, 0x100
+        call line
+
+
+        ;; Draw a line that has a negative slope
+        mov  rax, 0x80           ; x0=0, y0=128
+        shl rax, 0x10
+        or  rax, 0x90           ; x1=144
+        shl rax, 0x10
+        or  rax, 0x34           ; y1=132
+        mov rbx, 0x424344        ; hacky color
+        mov rcx, 0x100
+        shl rcx, 0x20
+        or  rcx, 0x100
+        call line
+
+
+        ;; Draw a line that has a slope
+        mov rax, 0x30           ; x0 = 48
+        shl rax, 0x10
+        or  rax, 0x30           ; y0 = 48
+        shl rax, 0x10
+        or  rax, 0x60           ; x1 = 96, y1 = 128
+        shl rax, 0x10
+        or  rax, 0x80
+        mov rbx, 0x424344        ; hacky color
+        mov rcx, 0x100
+        shl rcx, 0x20
+        or  rcx, 0x100
+        call line
+
+
+        ;; Draw a line that has a slope
+        mov  rax, 0x80           ; x0=0, y0=128
+        shl rax, 0x10
+        or rax, 0xFF            ; x1=255, y1=0
+        shl rax, 0x10
+        mov rbx, 0xFFFFFF        ; hacky color
+        mov rcx, 0x100
+        shl rcx, 0x20
+        or  rcx, 0x100
+        call line
+
+
         ;; Now save it!
         ;; fd should be in rax
         ;; size of buffer in rdx
