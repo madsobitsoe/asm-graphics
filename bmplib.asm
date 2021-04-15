@@ -7,6 +7,8 @@
         global draw_rays
         extern exitError
         extern cast_ray
+        extern check_bounds
+        extern clamp
         BITS 64
 
 ;; Dynamically generate a valid BMP header and write it file at fd
@@ -98,6 +100,8 @@ writeBmpBuffer:
         ret
 
 
+
+
 draw_pixel:
         ;; preconds
         ;; addr of buf should be in rdi
@@ -111,6 +115,12 @@ draw_pixel:
         push rbx
         push rdx
         push rsi
+        ;; check bounds
+        push rax
+        call check_bounds       ;check bounds
+        cmp rax, -1
+        je draw_pixel_exit_error ; if error, fail silently by not drawing
+        pop rax
         mov rsi, rdx
         shr rcx, 32             ; width
         xchg rax, rsi
@@ -127,6 +137,10 @@ draw_pixel_write:
         mov byte [rax+1], bl
         shr rbx, 8
         mov byte [rax+2], bl
+        jmp draw_pixel_exit
+draw_pixel_exit_error:
+        pop rax
+draw_pixel_exit:
         pop rsi
         pop rdx
         pop rbx
@@ -146,8 +160,35 @@ line:
         ;; Uses the midpoint-algorithm to draw a rasterized line
         push rdi                ; put addr on stack
         push rbx                ; put color on stack
-        push rcx
+        push rcx                ; put img_width,img_height on stack
         push rax                ; put coords on stack
+
+        ;; Clamp the coords!
+line_clamp:
+        push rdi
+        push rdx
+        push rax
+        shr rax, 32
+        xor rdx, rdx
+        mov dx, ax              ; y0
+        shr rax, 16             ; x0
+        call clamp
+        mov rdi, rax            ; x0 in rdi
+        shl rdi, 16             ; x0 << 16 in rdi
+        or  rdi, rdx            ; x0 << 16 | y0
+        shl rdi, 32             ; x0 << 48 | y0 << 32
+        pop rax
+        mov rdx, rax
+        shl rax, 32
+        shr rax, 48             ; x1
+        shl rdx, 48
+        shr rdx, 48             ; y1
+        call clamp
+        shl rax, 16
+        or rax, rdx
+        or rax, rdi
+        pop rdx
+        pop rdi
 
         ;; Ensure we are always drawing from left to right!
 line_ensure_left_right:
@@ -175,6 +216,7 @@ line_check_if_horizontal:
         and rbx, 0xFFFF         ;y1
         cmp rbx, rax
         je line_horizontal_rect
+
         ;; After all the checks, finally draw a line!
 line_draw_line:
         mov rax, [rsp]   ; x1
@@ -321,7 +363,6 @@ line_height_is_fine:
         jmp line_use_rectangle
 line_horizontal_rect:
         pop rax                 ;coords
-
         ;; Compute width of line, x1-x0
         mov ebx, eax
         shr rbx, 16             ; x1
@@ -412,11 +453,12 @@ rectangle_loop:
         cmp r14,r12             ; have we written all bytes in this row?
         jl rectangle_write
         ;; if we are done with this row, check if we're completely done
+        inc rbx                 ; increment y
+        dec r13                 ; one less row to write
         cmp r13, 0
         jle rectangle_exit
         ;; else, increment y and compute index to write next row
-        inc rbx                 ; increment y
-        dec r13                 ; one less row to write
+
         mov rax, rbx            ; current y in rax
         mul rbp                 ; multiply by byte-width of img
         add rax, rcx            ; add base x-offset

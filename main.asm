@@ -164,6 +164,32 @@ _start:                         ;The main entry point of the program
         ;; call line
 
 
+        mov rax, 0x80
+        shl rax, 16
+        or rax, 0x0           ; x0=128 y0=0
+        shl rax, 16
+        or  rax, 0x80           ; x1=128
+        shl rax, 16
+        or  rax, 0x100           ; y1=256
+        mov rbx, 0xFF00        ; Green!
+        mov rcx, 256
+        shl rcx, 32
+        or  rcx, 256
+        call line
+
+        mov rax, 0x80           ; x0=0 y0=128
+        shl rax, 16
+        or  rax, 0x100           ; x1=256
+        shl rax, 16
+        or  rax, 0x80           ; y1=128
+        mov rbx, 0xFF00        ; Green!
+        mov rcx, 256
+        shl rcx, 32
+        or  rcx, 256
+        call line
+
+
+
 
         ;; Set (x,y) = 128, 128
         ;; increment angle in steps of 16
@@ -175,11 +201,11 @@ _start:                         ;The main entry point of the program
         mov rax, 64
         shl rax, 32
         or  rax, 64             ;x0=32, y0=32
-        mov rbx,32              ; distance = 32
-        shl rbx,32              ; angle_start = 0
+        mov rbx, 32              ; distance = 32
+        shl rbx, 32              ; angle_start = 0
         or  rbx, 360            ; angle_stop = 360
         shl rbx, 16
-        or  rbx, 5              ; angle_step
+        or  rbx, 1              ; angle_step
         mov rcx, 0x100
         shl rcx, 32
         or  rcx, 0x100
@@ -192,7 +218,7 @@ _start:                         ;The main entry point of the program
         shl rbx,32              ; angle_start = 0
         or  rbx, 360            ; angle_stop = 360
         shl rbx, 16
-        or  rbx, 5              ; angle_step
+        or  rbx, 2              ; angle_step
         mov rcx, 0x100
         shl rcx, 32
         or  rcx, 0x100
@@ -205,7 +231,7 @@ _start:                         ;The main entry point of the program
         shl rbx,32              ; angle_start = 0
         or  rbx, 360            ; angle_stop = 360
         shl rbx, 16
-        or  rbx, 5              ; angle_step
+        or  rbx, 3              ; angle_step
         mov rcx, 0x100
         shl rcx, 32
         or  rcx, 0x100
@@ -218,7 +244,7 @@ _start:                         ;The main entry point of the program
         shl rbx,32              ; angle_start = 0
         or  rbx, 360            ; angle_stop = 360
         shl rbx, 16
-        or  rbx, 5              ; angle_step
+        or  rbx, 4              ; angle_step
         mov rcx, 0x100
         shl rcx, 32
         or  rcx, 0x100
@@ -228,11 +254,11 @@ _start:                         ;The main entry point of the program
         mov rax, 128
         shl rax, 32
         or  rax, 128             ;x0=32, y0=32
-        mov rbx,32              ; distance = 32
+        mov rbx,64              ; distance = 64
         shl rbx,32              ; angle_start = 0
         or  rbx, 360            ; angle_stop = 360
         shl rbx, 16
-        or  rbx, 5              ; angle_step
+        or  rbx, 15              ; angle_step
         mov rcx, 0x100
         shl rcx, 32
         or  rcx, 0x100
