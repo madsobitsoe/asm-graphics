@@ -4,7 +4,9 @@
         global rectangle
         global line
         global writeBmpBuffer
+        global draw_rays
         extern exitError
+        extern cast_ray
         BITS 64
 
 ;; Dynamically generate a valid BMP header and write it file at fd
@@ -157,11 +159,11 @@ line_ensure_left_right:
         jl line_check_if_horizontal
         je line_vertical_rect
 line_swap_coords:
-        pop rax
-        mov ebx, eax
-        shr rax, 32
-        shl ebx, 32
-        or rax, rbx
+        pop rax                 ; x0,y0,x1,y1
+        mov rbx, rax            ; copy to rbx
+        shr rax, 32             ; x0, y0
+        shl rbx, 32             ; x1, y1
+        or rax, rbx             ; x1,y1,x0,y0
         push rax
 
         ;; If this is a straight line, we can use the rectangle function instead
@@ -182,7 +184,7 @@ line_draw_line:
         mov rbx, [rsp]     ; x0
         shr rbx, 48
         sub rax, rbx            ; x1 - x0 == dx
-        shl rax, 1              ; abs_2dx
+        shl rax, 1              ; abs_2dx -- We KNOW that x0 < x1, always positive
         mov rcx, 0
         mov rdx, 0
         mov rcx, [rsp]
@@ -191,13 +193,28 @@ line_draw_line:
         mov rdx, [rsp]
         shl rdx, 16
         shr rdx, 48             ; y0
+        ;; dy
+        sub rcx, rdx            ; dy
+        ;; mov rdx, rcx
+        ;; sar rdx, 63
+        ;; xor rcx, rdx
+        ;; ;; absolute value of dy
+        ;; sub rcx, rdx            ; abs(dy)
         mov rsi, 1              ; initial value for y_step
-        cmp rcx, rdx            ; is y1>y0 ?
-        jg line_draw_line_dy_positive
-        xchg rcx, rdx           ; if not, swap them (for computation of abs value)
-        mov rsi, -1             ; y_step is negative
+        cmp rcx, 0            ; is dy < 0
+        jge line_draw_line_dy_positive ; if not, draw with y_step=1
+        mov rsi, -1             ; else, y_step is negative
+        ;; ;; old code
+        ;; mov rsi, 1              ; initial value for y_step
+        ;; cmp rcx, rdx            ; is y1>y0 ?
+        ;; jg line_draw_line_dy_positive
+        ;; xchg rcx, rdx           ; if not, swap them (for computation of abs value)
+        ;; mov rsi, -1             ; y_step is negative
 line_draw_line_dy_positive:
-        sub rcx, rdx            ; |y1 - y2|
+        mov rdx, rcx
+        neg rcx
+        cmovl rcx, rdx                 ; abs(dy)
+        ;; sub rcx, rdx            ; |y1 - y0|
         shl rcx, 1              ; abs_2dy
         ;;  Ensure actual y is in rdx
         mov rdx, [rsp]
@@ -209,13 +226,13 @@ line_draw_line_dy_positive:
         jmp line_y_init
 
 line_x_dom_init:
-        mov r8, rax
+        mov r8, rcx             ; abs_2dy in r8
         shr rax, 1
-        sub r8, rax            ; d
+        sub r8, rax            ; d = abs_2dy - (abs_2dx >> 1)
         shl rax, 1              ; restore abs_2dx
 line_x_dom_loop:
         cmp rbx, r13            ; Are we done?
-        jg line_exit
+        je line_exit
         cmp r8, 0
         jl line_x_dom_loop_skip_y_inc
         add rdx, rsi            ; y += y_step
@@ -239,11 +256,11 @@ line_x_dom_loop_skip_y_inc:
 line_y_init:
         mov r8, rax             ; abs_2dx
         shr rcx, 1              ; abs_2dy >> 1
-        sub r8, rcx             ; d = abs_2d - (abs_2dy >> 1)
+        sub r8, rcx             ; d = abs_2dx - (abs_2dy >> 1)
         shl rcx, 1              ; restore abs_2dy
 line_y_dom_loop:
         cmp rdx, r14            ; Are we done? y >= y1
-        jg line_exit
+        je line_exit
         cmp r8, 0               ; if (d >= 0)
         jl line_y_dom_loop_skip_x_inc
         inc rbx                 ; x += x_step
@@ -426,4 +443,76 @@ rectangle_exit:
         pop r12
         pop rbx
         pop rbp
+        ret
+
+
+draw_rays:
+        ;; draws rays from x0,y0 with distance c and angle a
+        ;; x0 << 32 | y0 in rax
+        ;; distance << 16 | angle_start << 32 | angle_stop << 16 | angle_step in rbx
+        ;; buf in rdi
+        ;; img_width << 32 | img_height in rcx
+        push r8
+        push r9
+        push r10
+        push r11
+        push rax
+        push rbx
+        push rcx
+        push rdi
+        push rsi
+        mov r8, rbx
+        shr r8, 48              ; distance
+        mov r9, rbx
+        shl r9, 16
+        shr r9, 48              ; angle_start (current angle)
+        mov r10d, ebx
+
+        shr r10, 16             ; angle_stop
+        mov r11, rbx
+        and r11, 0xffff         ; angle_step
+ray_loop:
+        cmp r9, r10
+        jge ray_loop_exit
+
+        mov rax, [rsp+32]       ; x,y
+
+        mov rbx, r8             ; distance
+        shl rbx, 32
+        or rbx, r9              ; current angle
+        push r8
+        push r9
+        push r10
+        push r11
+        call cast_ray
+        pop r11
+        pop r10
+        pop r9
+        pop r8
+        ;; Color goes in rbx
+        mov rbx, 0xAAFF00
+        ;; img_width << 32 | img_height should be in rcx
+        mov rcx, [rsp+16]
+        mov rdi, [rsp+8]
+        push r8
+        push r9
+        push r10
+        push r11
+        call line
+        pop r11
+        pop r10
+        pop r9
+        pop r8
+        add r9, r11
+        jmp ray_loop
+ray_loop_exit:
+        pop rsi
+        pop rdi
+        pop rcx
+        pop rbx
+        pop rax
+        pop r11
+        pop r10
+        pop r9
+        pop r8
         ret

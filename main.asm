@@ -7,6 +7,8 @@ BITS 64
         extern writeBmpBuffer
         extern rectangle
         extern line
+        ;; extern cast_ray
+        extern draw_rays
 
 _start:                         ;The main entry point of the program
         mov rax, filename
@@ -33,120 +35,210 @@ _start:                         ;The main entry point of the program
         or  rcx, 0x100           ; img_height in pixels
 
         call rectangle
-        ;; Now a smaller rectangle
-        ;; addr of buf should already be in rsi
-        ;; x=128, y=32, width=30, height = 40
-        mov rax, 64             ; x
-        shl rax, 16
-        or  rax, 64             ; y
-        shl rax, 16
-        or  rax, 128            ; width
-        shl rax, 16
-        or  rax, 128            ; height
-        mov rbx, 0x0            ; color
-        mov rcx, 256
-        shl rcx, 32
-        or  rcx, 256
-        call rectangle
-        ;; And an even smaller rectangle
-        mov rax, 96             ; x
-        shl rax, 16
-        or  rax, 96             ; y
-        shl rax, 16
-        or  rax, 64            ; width
-        shl rax, 16
-        or  rax, 64            ; height
-        mov rbx, 0xFFFFFF      ; color
-        mov rcx, 256
-        shl rcx, 32
-        or  rcx, 256
-        call rectangle
+        ;; ;; Now a smaller rectangle
+        ;; ;; addr of buf should already be in rsi
+        ;; ;; x=128, y=32, width=30, height = 40
+        ;; mov rax, 64             ; x
+        ;; shl rax, 16
+        ;; or  rax, 64             ; y
+        ;; shl rax, 16
+        ;; or  rax, 128            ; width
+        ;; shl rax, 16
+        ;; or  rax, 128            ; height
+        ;; mov rbx, 0x0            ; color
+        ;; mov rcx, 256
+        ;; shl rcx, 32
+        ;; or  rcx, 256
+        ;; call rectangle
+        ;; ;; And an even smaller rectangle
+        ;; mov rax, 96             ; x
+        ;; shl rax, 16
+        ;; or  rax, 96             ; y
+        ;; shl rax, 16
+        ;; or  rax, 64            ; width
+        ;; shl rax, 16
+        ;; or  rax, 64            ; height
+        ;; mov rbx, 0xFFFFFF      ; color
+        ;; mov rcx, 256
+        ;; shl rcx, 32
+        ;; or  rcx, 256
+        ;; call rectangle
 
-        ;; Draw a horizontal line!
-        mov rax, 0x80           ; x0=0 y0=128
-        shl rax, 16
-        or  rax, 0x100           ; x1=256
-        shl rax, 16
-        or  rax, 0x80           ; y1=128
-        mov rbx, 0xFF00        ; Green!
-        mov rcx, 256
-        shl rcx, 32
-        or  rcx, 256
-        call line
-        ;; Draw a vertical line!
-        mov rax, 0x80           ; x0=128 y0=0
+        ;; ;; Draw a horizontal line!
+        ;; mov rax, 0x80           ; x0=0 y0=128
+        ;; shl rax, 16
+        ;; or  rax, 0x100           ; x1=256
+        ;; shl rax, 16
+        ;; or  rax, 0x80           ; y1=128
+        ;; mov rbx, 0xFF00        ; Green!
+        ;; mov rcx, 256
+        ;; shl rcx, 32
+        ;; or  rcx, 256
+        ;; call line
+        ;; ;; Draw a vertical line!
+        ;; mov rax, 0x80           ; x0=128 y0=0
+        ;; shl rax, 32
+        ;; or  rax, 0x80           ; x1=128
+        ;; shl rax, 16
+        ;; or  rax, 0x100           ; y1=256
+        ;; mov rbx, 0xFF0000        ; Red!
+        ;; mov rcx, 256
+        ;; shl rcx, 32
+        ;; or  rcx, 256
+        ;; call line
+
+        ;; ;; Draw a line that has a slope
+        ;; mov  rax, 0x100           ; x0=0, y0=0, x1=256
+        ;; shl rax, 0x10
+        ;; or  rax, 0x100           ; y1=256
+        ;; mov rbx, 0x424344        ; hacky color
+        ;; mov rcx, 0x100
+        ;; shl rcx, 0x20
+        ;; or  rcx, 0x100
+        ;; call line
+
+
+        ;; ;; Draw a line that has a slope
+        ;; mov  rax, 0x80           ; x0=0, y0=128
+        ;; shl rax, 0x10
+        ;; or  rax, 0x100           ; x1=256, y1=192
+        ;; shl rax, 16
+        ;; or  rax, 192
+        ;; mov rbx, 0x424344        ; hacky color
+        ;; mov rcx, 0x100
+        ;; shl rcx, 0x20
+        ;; or  rcx, 0x100
+        ;; call line
+
+
+        ;; ;; Draw a line that has a negative slope
+        ;; mov  rax, 0x80           ; x0=0, y0=128
+        ;; shl rax, 0x10
+        ;; or  rax, 0x90           ; x1=144
+        ;; shl rax, 0x10
+        ;; or  rax, 0x34           ; y1=132
+        ;; mov rbx, 0x424344        ; hacky color
+        ;; mov rcx, 0x100
+        ;; shl rcx, 0x20
+        ;; or  rcx, 0x100
+        ;; call line
+
+
+        ;; ;; Draw a line that has a slope
+        ;; mov rax, 0x30           ; x0 = 48
+        ;; shl rax, 0x10
+        ;; or  rax, 0x30           ; y0 = 48
+        ;; shl rax, 0x10
+        ;; or  rax, 0x60           ; x1 = 96, y1 = 128
+        ;; shl rax, 0x10
+        ;; or  rax, 0x80
+        ;; mov rbx, 0x424344        ; hacky color
+        ;; mov rcx, 0x100
+        ;; shl rcx, 0x20
+        ;; or  rcx, 0x100
+        ;; call line
+
+
+        ;; ;; ;; Draw a line that has a slope
+        ;; ;; mov  rax, 0x80           ; x0=0, y0=0
+        ;; ;; shl rax, 0x10
+        ;; mov rax, 0xff           ; x1=255
+        ;; shl rax, 0x10
+        ;; or rax, 0x8F            ; y1=255
+        ;; mov rbx, 0xFFFFFF        ; hacky color
+        ;; mov rcx, 0x100
+        ;; shl rcx, 0x20
+        ;; or  rcx, 0x100
+        ;; call line
+
+        ;; ;; ;; Draw a line that has a slope
+        ;; mov  rax, 0xff           ; x0=0, y0=255
+        ;; shl rax, 0x10
+        ;; or rax, 0xFF            ; x1=255, y1=0
+        ;; shl rax, 0x10
+        ;; ;; or rax, 0x10
+        ;; mov rbx, 0xFFFFFF        ; hacky color
+        ;; mov rcx, 0x100
+        ;; shl rcx, 0x20
+        ;; or  rcx, 0x100
+        ;; call line
+
+
+
+        ;; Set (x,y) = 128, 128
+        ;; increment angle in steps of 16
+        ;; cast a ray for each angle with distance = 64
+        ;; draw the lines
+        ;; push r9
+        ;; mov r9, 0               ; start from 0
+
+        mov rax, 64
         shl rax, 32
-        or  rax, 0x80           ; x1=128
-        shl rax, 16
-        or  rax, 0x100           ; y1=256
-        mov rbx, 0xFF0000        ; Red!
-        mov rcx, 256
+        or  rax, 64             ;x0=32, y0=32
+        mov rbx,32              ; distance = 32
+        shl rbx,32              ; angle_start = 0
+        or  rbx, 360            ; angle_stop = 360
+        shl rbx, 16
+        or  rbx, 5              ; angle_step
+        mov rcx, 0x100
         shl rcx, 32
-        or  rcx, 256
-        call line
-
-        ;; Draw a line that has a slope
-        mov  rax, 0x100           ; x0=0, y0=0, x1=256
-        shl rax, 0x10
-        or  rax, 0x100           ; y1=256
-        mov rbx, 0x424344        ; hacky color
-        mov rcx, 0x100
-        shl rcx, 0x20
         or  rcx, 0x100
-        call line
+        call draw_rays
 
-
-        ;; Draw a line that has a slope
-        mov  rax, 0x80           ; x0=0, y0=128
-        shl rax, 0x10
-        or  rax, 0x100           ; x1=256, y1=192
-        shl rax, 16
-        or  rax, 192
-        mov rbx, 0x424344        ; hacky color
+        mov rax, 192
+        shl rax, 32
+        or  rax, 192             ;x0=32, y0=32
+        mov rbx,32              ; distance = 32
+        shl rbx,32              ; angle_start = 0
+        or  rbx, 360            ; angle_stop = 360
+        shl rbx, 16
+        or  rbx, 5              ; angle_step
         mov rcx, 0x100
-        shl rcx, 0x20
+        shl rcx, 32
         or  rcx, 0x100
-        call line
+        call draw_rays
 
-
-        ;; Draw a line that has a negative slope
-        mov  rax, 0x80           ; x0=0, y0=128
-        shl rax, 0x10
-        or  rax, 0x90           ; x1=144
-        shl rax, 0x10
-        or  rax, 0x34           ; y1=132
-        mov rbx, 0x424344        ; hacky color
+        mov rax, 64
+        shl rax, 32
+        or  rax, 192             ;x0=32, y0=32
+        mov rbx,32              ; distance = 32
+        shl rbx,32              ; angle_start = 0
+        or  rbx, 360            ; angle_stop = 360
+        shl rbx, 16
+        or  rbx, 5              ; angle_step
         mov rcx, 0x100
-        shl rcx, 0x20
+        shl rcx, 32
         or  rcx, 0x100
-        call line
+        call draw_rays
 
-
-        ;; Draw a line that has a slope
-        mov rax, 0x30           ; x0 = 48
-        shl rax, 0x10
-        or  rax, 0x30           ; y0 = 48
-        shl rax, 0x10
-        or  rax, 0x60           ; x1 = 96, y1 = 128
-        shl rax, 0x10
-        or  rax, 0x80
-        mov rbx, 0x424344        ; hacky color
+        mov rax, 192
+        shl rax, 32
+        or  rax, 64             ;x0=32, y0=32
+        mov rbx,32              ; distance = 32
+        shl rbx,32              ; angle_start = 0
+        or  rbx, 360            ; angle_stop = 360
+        shl rbx, 16
+        or  rbx, 5              ; angle_step
         mov rcx, 0x100
-        shl rcx, 0x20
+        shl rcx, 32
         or  rcx, 0x100
-        call line
+        call draw_rays
 
 
-        ;; Draw a line that has a slope
-        mov  rax, 0x80           ; x0=0, y0=128
-        shl rax, 0x10
-        or rax, 0xFF            ; x1=255, y1=0
-        shl rax, 0x10
-        mov rbx, 0xFFFFFF        ; hacky color
+        mov rax, 128
+        shl rax, 32
+        or  rax, 128             ;x0=32, y0=32
+        mov rbx,32              ; distance = 32
+        shl rbx,32              ; angle_start = 0
+        or  rbx, 360            ; angle_stop = 360
+        shl rbx, 16
+        or  rbx, 5              ; angle_step
         mov rcx, 0x100
-        shl rcx, 0x20
+        shl rcx, 32
         or  rcx, 0x100
-        call line
+        call draw_rays
+
+
 
 
         ;; Now save it!
@@ -219,6 +311,10 @@ createBmpBuffer:
         cmp rax, 0              ; check for errors
         jl exitError            ; exit with errno from syscall
         ret
+
+
+
+
 
 
 
