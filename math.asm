@@ -1,5 +1,78 @@
         BITS 64
         global cast_ray
+        global check_bounds
+        global clamp
+
+check_bounds:
+        ;; preconds
+        ;; x should be in rax
+        ;; y should be in rdx
+        ;; img_width,img_height (in pixels) as img_width << 32 | img_height should
+        ;; be in rcx
+        ;; postconds
+        ;; rax = 0 if success
+        ;; rax = -1 if oob
+        push rcx
+        cmp rax, 0              ; x < 0
+        jl check_bounds_exit_error
+        cmp rdx, 0              ; y < 0
+        jl check_bounds_exit_error
+        shr rcx, 32
+        cmp rax, rcx            ; x > width
+        jg check_bounds_exit_error
+        mov rcx, [rsp]
+        shl rcx, 32
+        shr rcx, 32
+        cmp rdx, rcx            ; y > height
+        jg check_bounds_exit_error
+        mov rax, 0
+        jmp check_bounds_exit
+check_bounds_exit_error:
+        mov rax, -1
+check_bounds_exit:
+        pop rcx
+        ret
+
+
+clamp:
+        ;; preconds
+        ;; x should be in rax
+        ;; y should be in rdx
+        ;; img_width,img_height (in pixels) as img_width << 32 | img_height should
+        ;; be in rcx
+        ;; postconds
+        ;; x,y clamped to fit inside img
+        ;; rax= clamped_x
+        ;; rdx = clamped_y
+
+        push rcx
+clamp_x_min:
+        cmp rax, 0              ; x < 0
+        jge clamp_x_max
+        mov rax, 0
+        jmp clamp_y_min
+clamp_x_max:
+        shr rcx, 32
+        cmp rax, rcx            ;x > width
+        jle clamp_y_min
+        mov rax, rcx
+clamp_y_min:
+        cmp rdx,0
+        jge clamp_y_max
+        mov rdx, 0
+        jmp clamp_exit
+clamp_y_max:
+        mov rcx,[rsp]
+        shl rcx,32
+        shr rcx, 32
+        cmp rdx, rcx
+        jle clamp_exit
+        mov rdx, rcx
+clamp_exit:
+        pop rcx
+        ret
+
+
 
 cast_ray:
         ;; origin_x << 32 | origin_y in rax
