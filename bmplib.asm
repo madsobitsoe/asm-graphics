@@ -28,6 +28,7 @@ dyn_writeBmpHeader:
         mul rbx
         mov ebx, eax            ; rbx has size of file (which can only be 4 bytes large)
         mov rdi,0x4d42          ;"BM"
+        add rbx, 54             ; add header size to byte count
         shl rbx, 16
         or rbx, rdi
         pop rax                 ; rax has addr
