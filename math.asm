@@ -100,36 +100,36 @@ cast_ray:
         ;; origin_x << 32 | origin_y in rax
         ;; distance c << 32 | angle in degrees in rbx
         ;; returns:
-        ;; origin_x << 48 | origin_y << 32 | new_x << 16 | new_y
+        ;; rax = origin_x << 48 | origin_y << 32 | new_x << 16 | new_y
         push rdx                         ; Save for good measure
         push rdi                         ; Save for good measure
-        push r8                          ; origin_x
-        push r9                          ; origin_y
-        push r10                         ; new_x
-        push r11                         ; new_y
+        push r8                          ; use for origin_x
+        push r9                          ; use for origin_y
+        push r10                         ; use for new_x
+        push r11                         ; use for new_y
         mov r9d, eax                     ; store origin_y in r9
         shr rax, 32                      ; origin_x
         mov r8, rax                      ; store origin_x in r8
 
-        mov edi, ebx                     ; angle in degrees
+        mov edi, ebx                     ; rdi = angle in degrees
         shr rbx, 32                      ; distance
         ;; compute new_y
         cvtsi2ss xmm0, ebx               ; distance in float reg
         mulss xmm0, [sintable + 4 * edi] ; c * sin(angle)
-        cvtss2si r11, xmm0
-        add r11, r9                     ; new_y = origin_y + c * sin(angle)
-        ;; cmpute new_x
+        cvtss2si r11, xmm0               ; new_y = int(c * sin(angle))
+        add r11, r9                      ; new_y = origin_y + int(c * sin(angle))
+        ;; compute new_x
         cvtsi2ss xmm0, ebx               ; distance in float reg
         mulss xmm0, [costable + 4 * edi] ; c * cos(angle)
-        cvtss2si r10, xmm0
-        add r10, r8                     ; new_x = origin_x + c * cos(angle)
-        mov rax, r8
-        shl rax, 16
-        or  rax, r9
-        shl rax, 16
-        or  rax, r10
-        shl rax, 16
-        or rax, r11                      ; origin_x << 48 | origin_y << 32 | new_x << 16 | new_y
+        cvtss2si r10, xmm0               ; new_x = int(c * cos(angle))
+        add r10, r8                      ; new_x = origin_x + int(c * cos(angle))
+        mov rax, r8                      ; rax = origin_x
+        shl rax, 16                      ; rax = origin_x << 16
+        or  rax, r9                      ; rax = origin_x << 16 | origin_y
+        shl rax, 16                      ; rax = origin_x << 32 | origin_y << 16
+        or  rax, r10                     ; rax = origin_x << 32 | origin_y << 16 | new_x
+        shl rax, 16                      ; rax = origin_x << 48 | origin_y << 32 | new_x << 16
+        or rax, r11                      ; rax = origin_x << 48 | origin_y << 32 | new_x << 16 | new_y
 
         pop r11                          ; Restore for good measure
         pop r10                          ; Restore for good measure
