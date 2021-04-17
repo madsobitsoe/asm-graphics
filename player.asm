@@ -55,7 +55,6 @@ player_view_cone_loop:
         push rax                ; player_x, player_y
         push r8
         push rdx                ; current unclamped degrees
-        ;; int3
         xchg rax, rdx           ; put unclamped degrees in rax
         call clamp_degrees      ; clamp them
         call player_cast_ray
@@ -70,9 +69,10 @@ player_view_cone_loop:
         shl rax, 32
         or rax, rdx             ; player_x << 48 | player_y << 32 | hit_x << 16 | hit_y
 
-        ;; int3
+
         mov rbx, [rsp+0x18]        ; color
         push rdi
+
         call line
         pop rdi
 
@@ -128,10 +128,10 @@ player_cast_ray:
         push rdi
         push rdx
         push rbp
-        ;; int3
-        mov ecx, dword [tile_size]
+
+        ;; mov ecx, dword [tile_size]
         ;; shr rcx, 2              ; tile_size / 8
-        mov rcx, 1
+        mov rcx, 1              ; just step by 1
         mov rbx, 0              ; current distance to check
         mov edi, eax            ; angle
         push rax
@@ -144,8 +144,6 @@ player_cast_ray:
 
 
 player_cast_ray_loop:
-        ;; int3
-        ;; FROM HERE
         push rax
         mov dx, word [player_x]     ; should be player_x << 32 | player_y
         shl rdx, 32
@@ -153,17 +151,12 @@ player_cast_ray_loop:
         mov ax, word [player_y]
         or rdx, rax
         pop rax
-        ;; TO HERE
         add rbx, rcx            ; add tile_size / 2 to distance we're checking
-        ;; push rcx
-        ;; push rbx
         shl rbx, 32
         or  rbx, rdi            ; distance << 32 | angle
         mov rax, rdx
-        ;; int3
+
         call cast_ray
-        ;; pop rcx
-        ;; pop rbx
         mov rbp, rax            ; save ray
 
         mov edx, eax            ; set up call to wall-check
@@ -175,7 +168,7 @@ player_cast_ray_loop:
         pop rdx
         cmp rax, 0
         je player_cast_ray_loop
-        ;; int3
+
         mov eax, ebp
         shl rbx, 32             ; shift distance
         or rax, rbx             ; distance << 32 | hit_x << 16 | hit_y
@@ -201,5 +194,5 @@ player_get_pos:
         section .data
 player_x:       dw 0x70         ; 24
 player_y:       dw 0x36         ; 136
-player_angle:   dw 0x0          ; initial angle of 90
+player_angle:   dw 0x50          ; initial angle of 90
 player_half_fov:     dw 0x38         ; player FOV = 112 degrees, we need "half"
