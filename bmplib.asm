@@ -3,6 +3,7 @@
         global writeBmpDataToBuffer
         global rectangle
         global line
+        global draw_pixel
         global writeBmpBuffer
         global draw_rays
         extern exitError
@@ -158,6 +159,7 @@ line:
         ;; img_width,img_height (in pixels) as img_width << 32 | img_height should be in rcx
         ;; remarks:
         ;; Uses the midpoint-algorithm to draw a rasterized line
+        push rdx
         push rdi                ; put addr on stack
         push rbx                ; put color on stack
         push rcx                ; put img_width,img_height on stack
@@ -197,8 +199,9 @@ line_ensure_left_right:
         shl rax, 32
         shr rax, 48             ;x1
         cmp rbx, rax
-        jl line_check_if_horizontal
-        je line_vertical_rect
+        jle line_draw_line
+        ;; jl line_check_if_horizontal
+        ;; je line_vertical_rect
 line_swap_coords:
         pop rax                 ; x0,y0,x1,y1
         mov rbx, rax            ; copy to rbx
@@ -206,7 +209,8 @@ line_swap_coords:
         shl rbx, 32             ; x1, y1
         or rax, rbx             ; x1,y1,x0,y0
         push rax
-
+        ;; ADDED DEBUG
+        jmp line_draw_line
         ;; If this is a straight line, we can use the rectangle function instead
 line_check_if_horizontal:
         mov rax, [rsp]          ;get coords back in rax
@@ -331,6 +335,7 @@ line_exit:
         pop rcx
         pop rbx
         pop rdi
+        pop rdx
         ret
 
 line_vertical_rect:
@@ -382,14 +387,20 @@ line_use_rectangle:
         pop rcx
         pop rbx
         pop rdi
-        jmp rectangle
+        call rectangle
+        pop rdx
+        int3
+        ;; jmp rectangle
+        ret
 
 line_error:
         ;; just return - definitely don't draw anything
-        pop rax
+        ;; pop rax
+        int3
         pop rcx
         pop rbx
         pop rdi
+        pop rdx
         ret
 
 

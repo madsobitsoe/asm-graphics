@@ -1,5 +1,8 @@
         BITS 64
         global draw_level
+        global level
+        global level_check_if_point_is_wall
+        global tile_size
         extern rectangle
 
 draw_level:
@@ -10,6 +13,8 @@ draw_level:
         push rcx
         push rbx
         push rdx
+        push r15
+        mov r10, 0x0
         mov r10, rcx
         mov r9d, dword[tile_size]
         xor rax, rax            ; rax = current tile_x
@@ -43,6 +48,9 @@ draw_level_loop_row:
         mov rbx, 0x00FFFF
         jmp color_found
 color_wall:
+
+        ;; mov rbx,r15
+        ;; add r15, 0x10
         mov rbx, 0xFF0000
 color_found:
         pop rax                    ; tile_x
@@ -71,11 +79,41 @@ color_found:
         jmp draw_level_loop
 
 draw_level_done:
+        pop r15
         pop rdx
         pop rbx
         pop rcx
         pop rax
         pop rdi
+        ret
+
+
+level_check_if_point_is_wall:
+        ;; point to check as
+        ;; rax = x
+        ;; rdx = y
+        ;; returns the value of that location in the map
+        ;; e.g. 0 = no wall, other value = wall of type N
+        push rax
+        push rcx
+        push rdx
+        ;; int3
+        xor rdx, rdx
+        div dword[tile_size]    ; x / tile_size is x-offset into level
+        pop rdx
+        push rax
+        xchg rax, rdx
+        xor rdx, rdx
+        div dword[tile_size]   ; y / tile_size is y-offset
+        mul dword[map_width]   ; y / tile_size * map_width + (x / tile_size) is index
+        mov rcx, rax
+        pop rax
+        add rcx, rax
+        xor rax, rax
+        ;; int3
+        mov al, byte [level + rcx]
+        pop rcx
+        add rsp, 8
         ret
 
 
@@ -87,32 +125,32 @@ tile_size:      dd 16
 level:
         dq 0x0101010101010101
         dq 0x0101010101010101
-        dq 0x0000000100000001
-        dq 0x0100000000000000
-        dq 0x0000000100000001
-        dq 0x0100000000000000
-        dq 0x0000000100000001
-        dq 0x0100000000000000
-        dq 0x0000000101010001
-        dq 0x0100000000000000
-        dq 0x0000000100000001
+        dq 0x0000000000000001
         dq 0x0100000000000000
         dq 0x0001010100000001
         dq 0x0100000000000000
-        dq 0x0001000000000001
-        dq 0x0100000001000000
-        dq 0x0001000001000001
-        dq 0x0100000001000000
-        dq 0x0001000001000001
-        dq 0x0100000001000000
-        dq 0x0001010101000001
-        dq 0x0100000001000000
-        dq 0x0000000001000001
-        dq 0x0100000001000000
-        dq 0x0000000001000001
-        dq 0x0101010101000000
-        dq 0x0101010101010001
+        dq 0x0000000000000001
         dq 0x0100000000000000
+        dq 0x0000000100000001
+        dq 0x0100000100000000
+        dq 0x0000000100000001
+        dq 0x0100000100000000
+        dq 0x0000000100000001
+        dq 0x0100000100000000
+        dq 0x0000000100000001
+        dq 0x0100000100000000
+        dq 0x0000000100000001
+        dq 0x0100000100000000
+        dq 0x0000000100000001
+        dq 0x0100000000000000
+        dq 0x0000000100000001
+        dq 0x0100000100000000
+        dq 0x0000000100000001
+        dq 0x0100000000000000
+        dq 0x0000000000000001
+        dq 0x0100000000000000
+        dq 0x0101010101010101
+        dq 0x0100000000000101
         dq 0x0000000000000001
         dq 0x0100000000000000
         dq 0x0101010101010101

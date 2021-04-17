@@ -7,9 +7,13 @@ BITS 64
         extern writeBmpBuffer
         extern rectangle
         extern line
+        extern draw_pixel
         extern draw_level
         ;; extern cast_ray
         extern draw_rays
+        extern player_get_view
+        extern player_get_pos
+        extern player_draw_view_cone
 
 _start:                         ;The main entry point of the program
         mov rax, filename
@@ -32,15 +36,30 @@ _start:                         ;The main entry point of the program
         ;; ;; Now write some fancy rectangles
         ;; ;; Full background
         ;; ;; draw the entire buffer
-        mov rax, 0x01000100     ; x=0, y=0, width=256, height=256
-        mov rbx, 0xAA00FF       ; BGR
+        ;; mov rax, 0x01000100     ; x=0, y=0, width=256, height=256
+        ;; mov rbx, 0xAA00FF       ; BGR
         mov rcx, 0x100          ; img_width in pixels
         shl rcx, 32
         or  rcx, 0x100           ; img_height in pixels
-        push rcx
-        call rectangle
-        pop rcx
+        ;; push rcx
+        ;; call rectangle
+        ;; pop rcx
         call draw_level
+
+
+        ;; push rdx
+        push rcx
+        ;; call player_get_view
+        ;; mov rbx, 0xB0B000
+        ;; call line
+        call player_draw_view_cone
+        pop rcx
+        ;; pop rdx
+        ;; draw the player
+        call player_get_pos
+        mov rbx, 0xFFFFFF            ; white player-dot
+        call draw_pixel
+
 
         ;; ;; ;; Now a smaller rectangle
         ;; ;; ;; addr of buf should already be in rsi

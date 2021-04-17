@@ -2,6 +2,7 @@
         global cast_ray
         global check_bounds
         global clamp
+        global clamp_degrees
 
 check_bounds:
         ;; preconds
@@ -72,6 +73,27 @@ clamp_exit:
         pop rcx
         ret
 
+clamp_degrees:
+        ;; make sure all degrees are between 0 and 359
+        ;; degrees in rax
+        push rbx
+        ;; Check if larger than max
+        cmp rax, 360
+        jl clamp_degrees_below
+
+clamp_degrees_above:
+        sub rax, 360
+        cmp rax, 360
+        jge clamp_degrees_above
+        jmp clamp_degrees_done
+clamp_degrees_below:
+        cmp rax, 0
+        jge clamp_degrees_done
+        add rax, 360
+        jmp clamp_degrees_below
+clamp_degrees_done:
+        pop rbx
+        ret
 
 
 cast_ray:
